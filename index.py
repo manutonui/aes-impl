@@ -1,3 +1,5 @@
+import numpy as np
+
 Sbox = [
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -17,7 +19,6 @@ Sbox = [
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 ]
 
-
 Rcon = [
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
@@ -25,27 +26,28 @@ Rcon = [
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 ]
 
-
+# Encrypt (): The main function that encrypts text with a key
 def encrypt(plainText, key):
 
     blocks = divideIntoBlocks(plainText)
     roundKeys = getRoundKeys(key)
+    cipherBlocks = []
 
     for block in blocks:
-        addRoundKey(roundKeys[0], block) # First round
+        _block = addRoundKey(roundKeys[0], block) # First round
 
         for i in range(9): # Intermediate rounds
-            subTypes(block)
-            shiftRows(block)
-            mixColumns(block)
-            addRoundKey(roundKeys[i], block)
+            _block = subBytes(block)
+            _block = shiftRows(block)
+            _block = mixColumns(block)
+            _block = addRoundKey(roundKeys[i], block)
 
-        subTypes(block)
-        shiftRows(block)
-        addRoundKey(roundKeys[9], block)
+        _block = subBytes(block)
+        _block = shiftRows(block)
+        _block = addRoundKey(roundKeys[9], block)
 
-    cipherText = reAssemble(blocks)
-    return cipherText
+    # cipherText = reAssemble(blocks)
+    return _block
 
 
 """
@@ -109,13 +111,21 @@ def getRoundKeys(key):
         temp = W[i-1] # previous word
     
         if i % Nk == 0:
-            temp = xor_bytes(subWord(rotWord(temp)), bytes(Rcon[int(i/Nk)]))  # find xor of the values
+            temp = list(subWord(rotWord(temp)))
+            temp[0] = temp[0] ^ Rcon[i//Nk] # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
         elif Nk > 6 and i % Nk == 4:
             temp = subWord(temp)
         
         W[i] = xor_bytes(W[i-Nk], temp)
-            
-    return W
+
+    theKeys = [W[i:i+4] for i in range(0, len(W), 4)]
+    transposedKeys = []
+    for key in theKeys:
+        key = np.array(key).transpose()
+        transposedKeys.append(key)
+
+
+    return transposedKeys
 
 
 """
@@ -125,10 +135,12 @@ def getRoundKeys(key):
 def rotWord(word):
     return word[1:] + word[:1]
 
-#takes two hex values and calculates hex1 xor hex2
+
 def xor_bytes(a, b):
-    result_int = int.from_bytes(a, byteorder="big") ^ int.from_bytes(b, byteorder="big")
-    return result_int.to_bytes(max(len(a), len(b)), byteorder="big")
+    result = []
+    for i in range(4):
+        result.append(a[i] ^ b[i])
+    return result
 
 def subWord(word):
     #assert len(word) == 4
@@ -137,19 +149,87 @@ def subWord(word):
 
 
 def addRoundKey(roundKey, block):
-    return ""
+    for i in range(4):
+        for j in range(4):
+            block[i][j] = xor_bytes(block[i][j], roundKey[i][j])
+            
+    return block
 
-def subTypes(block):
-    return ""
+
+def addRoundKey(key, block):
+    block = [block[i:i+4] for i in range(0, len(block), 4)]
+    for i in range(4):
+        for j in range(4):
+            block[i][j] ^= key[i][j]
+            
+    return block
+            
 
 
-def shiftRows(block):
-    return ""
+def subBytes(block):
+    block = np.array(block)
+    block = np.reshape(block, (4, 4)).transpose()
+    #print(block)
+    
+    for i in range(4):
+        for j in range(4):
+            block[i][j] = Sbox[block[i][j]]
+            
+    return block
 
-def mixColumns(block):
-    return ""
+
+
+def shiftRows(s): # s for state
+    
+    s = np.array(s)
+    s = np.reshape(s, (4, 4)).transpose()
+    #print(s)
+    
+    s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
+    s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
+    s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
+    
+    return s
+
+
+
+
+# learned from https://web.archive.org/web/20100626212235/http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
+xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
+
+
+def mix_single_column(a):
+    # print(a)
+    # see Sec 4.1.2 in The Design of Rijndael
+    t = a[0] ^ a[1] ^ a[2] ^ a[3]
+    u = a[0]
+    a[0] ^= t ^ xtime(a[0] ^ a[1])
+    a[1] ^= t ^ xtime(a[1] ^ a[2])
+    a[2] ^= t ^ xtime(a[2] ^ a[3])
+    a[3] ^= t ^ xtime(a[3] ^ u)
+
+
+def mixColumns(s):
+    
+    s = np.array(s)
+    s = np.reshape(s, (4, 4)).transpose()
+    
+    for i in range(4):
+        mix_single_column(s[i])
+        
+    return s
 
 def reAssemble(blocks):
     return ""
 
-print(getRoundKeys("Emmanuel K Tonui"))
+
+cipherBlocks = encrypt("SampleTxtToCrypt", "SampleKeyToCrypt") # the final matrix after all transformations
+
+cipher = np.array(cipherBlocks).transpose().reshape(-1)
+
+cipherText = []
+for k in cipher:
+    cipherText.append(chr(k))
+
+print("".join(cipherText)) # output the cipher text
+
