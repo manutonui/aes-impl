@@ -26,109 +26,119 @@ Rcon = [
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 ]
 
-# Encrypt (): The main function that encrypts text with a key
+inv_Sbox = [
+    0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
+    0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
+    0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, 0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
+    0x08, 0x2E, 0xA1, 0x66, 0x28, 0xD9, 0x24, 0xB2, 0x76, 0x5B, 0xA2, 0x49, 0x6D, 0x8B, 0xD1, 0x25,
+    0x72, 0xF8, 0xF6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xD4, 0xA4, 0x5C, 0xCC, 0x5D, 0x65, 0xB6, 0x92,
+    0x6C, 0x70, 0x48, 0x50, 0xFD, 0xED, 0xB9, 0xDA, 0x5E, 0x15, 0x46, 0x57, 0xA7, 0x8D, 0x9D, 0x84,
+    0x90, 0xD8, 0xAB, 0x00, 0x8C, 0xBC, 0xD3, 0x0A, 0xF7, 0xE4, 0x58, 0x05, 0xB8, 0xB3, 0x45, 0x06,
+    0xD0, 0x2C, 0x1E, 0x8F, 0xCA, 0x3F, 0x0F, 0x02, 0xC1, 0xAF, 0xBD, 0x03, 0x01, 0x13, 0x8A, 0x6B,
+    0x3A, 0x91, 0x11, 0x41, 0x4F, 0x67, 0xDC, 0xEA, 0x97, 0xF2, 0xCF, 0xCE, 0xF0, 0xB4, 0xE6, 0x73,
+    0x96, 0xAC, 0x74, 0x22, 0xE7, 0xAD, 0x35, 0x85, 0xE2, 0xF9, 0x37, 0xE8, 0x1C, 0x75, 0xDF, 0x6E,
+    0x47, 0xF1, 0x1A, 0x71, 0x1D, 0x29, 0xC5, 0x89, 0x6F, 0xB7, 0x62, 0x0E, 0xAA, 0x18, 0xBE, 0x1B,
+    0xFC, 0x56, 0x3E, 0x4B, 0xC6, 0xD2, 0x79, 0x20, 0x9A, 0xDB, 0xC0, 0xFE, 0x78, 0xCD, 0x5A, 0xF4,
+    0x1F, 0xDD, 0xA8, 0x33, 0x88, 0x07, 0xC7, 0x31, 0xB1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xEC, 0x5F,
+    0x60, 0x51, 0x7F, 0xA9, 0x19, 0xB5, 0x4A, 0x0D, 0x2D, 0xE5, 0x7A, 0x9F, 0x93, 0xC9, 0x9C, 0xEF,
+    0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0, 0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
+    0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
+]
+
+"""
+=========================================================================================
+=========================================================================================
+=========================================================================================
+ENCRYPT FUNCTION
+=========================================================================================
+=========================================================================================
+=========================================================================================
+
+"""
+
+
 def encrypt(plainText, key):
+    
+    if  not len(plainText) == 16 and len(key) == 16:
+        raise Exception("Ensure text and key length is 16")
+        
+    assert len(plainText) == 16 and len(key) == 16 # Ensure Length is 16 bytes e.g 128 bits
 
     blocks = divideIntoBlocks(plainText)
     roundKeys = getRoundKeys(key)
-    cipherBlocks = []
 
-    for block in blocks:
-        _block = addRoundKey(roundKeys[0], block) # First round
+    for block in blocks: # each block is 16bytes(128 bits)
+        
+        _block = np.reshape(np.array(block), (4,4)) # convert to 4x4 matrix
+        _block = addRoundKey(roundKeys[0], _block) # First round
 
-        for i in range(9): # Intermediate rounds
-            _block = subBytes(block)
-            _block = shiftRows(block)
-            _block = mixColumns(block)
-            _block = addRoundKey(roundKeys[i], block)
+        for i in range(1, 10): # Intermediate rounds
+            _block = subBytes(_block)
+            _block = shiftRows(_block)
+            _block = mixColumns(_block)
+            _block = addRoundKey(roundKeys[i], _block)
 
-        _block = subBytes(block)
-        _block = shiftRows(block)
-        _block = addRoundKey(roundKeys[9], block)
-
-    # cipherText = reAssemble(blocks)
-    return _block
-
-
-"""
-    divideIntoBlocks:  division of the input text into blocks of 128 bits (16 bytes). Each block is represented as a 4×4 matrix
-"""
-# TASK 1: divide input text into blocks of 16 bytes
-def divideIntoBlocks(text):
-
-    if len(text) % 16 != 0:
-        text = padText(text) # Text padded
-
-    # Division of text to 16 bytes blocks
-    blocks = split_blocks(text)
-
-    byteBlocks = [] # Array of blocks of 16 bytes each
-    for block in blocks:
-        matrix = [] # one block of 16 bytes
-        for i in block:
-            matrix.append(ord(i)) # convert characters to byte values
-        byteBlocks.append(matrix)
-
-    return byteBlocks
-
-
-"""
-    divideIntoBlocks() HELPER FUNCTIONS:
-"""
-def padText(text):
-    for i in range(16):
-        if (len(text)+i) % 16 == 0:
-            return text+" "*i # add extra whitespace to make 16 bytes
-
-def split_blocks(message):
-        assert len(message) % 16 == 0
-        return [message[i:i+16] for i in range(0, len(message), 16)]
+        # last round
+        _block = subBytes(_block)
+        _block = shiftRows(_block)
+        _block = addRoundKey(roundKeys[-1], _block)
+        
+    # ReAssemble the 128bit block
+    cipher = np.array(_block).reshape(-1)
+    encryptedText = "".join(format(x, '02x') for x in cipher)
+    return encryptedText
 
 
 
 """
+=========================================================================================
+=========================================================================================
+=========================================================================================
     getRoundKeys():  performs key deployment
+    KEY EXPANSION
+=========================================================================================
+=========================================================================================
+=========================================================================================
 """
 def getRoundKeys(key):
-
-    key = divideIntoBlocks(key)
-    key = key[0] # 128bit key
     
     assert len(key) * 8 in {128, 192, 256}
 
-    Nk = {128: 4, 192: 6, 256: 8}[len(key) * 8] # length of the key words ( 4 bytes)
     
+    Nk = {128: 4, 192: 6, 256: 8}[len(key) * 8] # length of the key in 4 byte words
     Nr = {128: 11, 192: 13, 256: 15}[len(key) * 8] # number of rounds
-
-    # the first 4 words of the expanded key
-    W = [None for i in range(Nr * 4)]
+    Nb = 4 # no of bytes in a word - length of word
     
+    key = toUnicode(key) # key to bytes
+
+    # the expanded keys. E.g if Nr = 11, expanded keys should be same, etc
+    W = [None for i in range(Nr * Nb)]
+    
+    # first round
     for i in range(Nk):
-        W[i] = key[ i*4 : (i+1)*4] # string slicing 4 bytes each ( the bytes into words )
-
+        W[i] = key[ i*Nb : (i+1)*Nb] # slicing
+        
     
-    for i in range(Nk, (4 * Nr)):
+    # for other keys
+    for i in range(Nk, (Nb * Nr)):
         temp = W[i-1] # previous word
     
-        if i % Nk == 0:
-            temp = list(subWord(rotWord(temp)))
-            temp[0] = temp[0] ^ Rcon[i//Nk] # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
+        if i % Nk == 0: #
+            temp = subWord(rotWord(temp))
+            temp[0] ^= Rcon[i//Nk] # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
         elif Nk > 6 and i % Nk == 4:
             temp = subWord(temp)
         
         W[i] = xor_bytes(W[i-Nk], temp)
-
+        
+    # group into 4 - we have the expanded keys
     theKeys = [W[i:i+4] for i in range(0, len(W), 4)]
-    transposedKeys = []
-    for key in theKeys:
-        key = np.array(key).transpose()
-        transposedKeys.append(key)
-
-
-    return transposedKeys
+    return theKeys
 
 
 """
+=========================================================================================
+=========================================================================================
     getRoundKeys() HELPER FUNCTIONS:
 """
 #takes from 1 to the end, adds on from the start to 1
@@ -144,33 +154,26 @@ def xor_bytes(a, b):
 
 def subWord(word):
     #assert len(word) == 4
-    return bytes(Sbox[b] for b in word)
+    return [Sbox[w] for w in word]
 
 
 
-def addRoundKey(roundKey, block):
-    for i in range(4):
-        for j in range(4):
-            block[i][j] = xor_bytes(block[i][j], roundKey[i][j])
-            
-    return block
-
-
+"""
+=========================================================================================
+=========================================================================================
+Encrypt()
+HELPER FUNCTIONS
+"""
 def addRoundKey(key, block):
-    block = [block[i:i+4] for i in range(0, len(block), 4)]
     for i in range(4):
         for j in range(4):
             block[i][j] ^= key[i][j]
             
-    return block
-            
+    return block            
+
 
 
 def subBytes(block):
-    block = np.array(block)
-    block = np.reshape(block, (4, 4)).transpose()
-    #print(block)
-    
     for i in range(4):
         for j in range(4):
             block[i][j] = Sbox[block[i][j]]
@@ -179,12 +182,7 @@ def subBytes(block):
 
 
 
-def shiftRows(s): # s for state
-    
-    s = np.array(s)
-    s = np.reshape(s, (4, 4)).transpose()
-    #print(s)
-    
+def shiftRows(s):
     s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
     s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
     s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
@@ -193,14 +191,11 @@ def shiftRows(s): # s for state
 
 
 
-
 # learned from https://web.archive.org/web/20100626212235/http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
 
 def mix_single_column(a):
-    # print(a)
-    # see Sec 4.1.2 in The Design of Rijndael
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -210,26 +205,128 @@ def mix_single_column(a):
 
 
 def mixColumns(s):
-    
-    s = np.array(s)
-    s = np.reshape(s, (4, 4)).transpose()
-    
     for i in range(4):
         mix_single_column(s[i])
         
     return s
 
-def reAssemble(blocks):
-    return ""
 
 
-cipherBlocks = encrypt("SampleTxtToCrypt", "SampleKeyToCrypt") # the final matrix after all transformations
+"""
+=========================================================================================
+=========================================================================================
+=========================================================================================
+    divideIntoBlocks:  division of the input text into blocks of 128 bits (16 bytes)
+"""
+# TASK 1: divide input text into blocks of 16 bytes and return 4X4 matrix
+def divideIntoBlocks(text):
+    
+    if len(text) % 16 != 0:
+        text = padText(text) # Text padded
 
-cipher = np.array(cipherBlocks).transpose().reshape(-1)
+    blocks = split_blocks(text)
+    
+    byteBlocks = []
+    for block in blocks:
+        matrix = toUnicode(block)
+        byteBlocks.append(matrix)
+        
+    return byteBlocks
 
-cipherText = []
-for k in cipher:
-    cipherText.append(chr(k))
 
-print("".join(cipherText)) # output the cipher text
+"""
+=========================================================================================
+=========================================================================================
+    divideIntoBlocks() HELPER FUNCTIONS:
+"""
+def padText(text):
+    for i in range(16):
+        if (len(text)+i) % 16 == 0:
+            return text+" "*i # add extra whitespace to make 16 bytes
 
+def split_blocks(message, size=16):
+        assert len(message) % size == 0
+        return [message[i:i+size] for i in range(0, len(message), size)]
+
+def toUnicode(block):
+    byteArr = []
+    for b in block:
+        byteArr.append(ord(b))
+    return byteArr
+
+# Test Functions
+txt = "SampleTxtToCrypt"
+key = "SampleKeyToKrypt"
+encryptedTxt = encrypt(txt, key)
+print("Encrypted Text = " + encryptedTxt)
+
+
+
+"""
+=========================================================================================
+=========================================================================================
+=========================================================================================
+DECRYPT FUNCTION
+=========================================================================================
+=========================================================================================
+=========================================================================================
+
+"""
+
+def decrypt(encryptedText, key):
+    roundKeys = getRoundKeys(key)
+    state = hex2ByteMatrix(encryptedText)
+    
+    state = addRoundKey(roundKeys[-1], state)
+    state = inv_shift_rows(state)
+    state = inv_sub_bytes(state)
+    
+    for i in range(9,0,-1):
+        state = addRoundKey(state, roundKeys[i])
+        state = inv_mix_columns(state)
+        state = inv_shift_rows(state)
+        state = inv_sub_bytes(state)
+
+    state = addRoundKey(state, roundKeys[0])
+    state = list(np.reshape(state, (-1)))
+    text = [chr(b) for b in state]
+    return "".join(text)
+    
+    
+def inv_shift_rows(s):
+    s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
+    s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
+    s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
+    return s
+    
+    
+def inv_sub_bytes(s):
+    for i in range(4):
+        for j in range(4):
+            s[i][j] = inv_Sbox[s[i][j]]
+    return s
+    
+    
+def inv_mix_columns(s):
+    for i in range(4):
+        u = xtime(xtime(s[i][0] ^ s[i][2]))
+        v = xtime(xtime(s[i][1] ^ s[i][3]))
+        s[i][0] ^= u
+        s[i][1] ^= v
+        s[i][2] ^= u
+        s[i][3] ^= v
+
+    return mixColumns(s)
+    
+    
+def hex2ByteMatrix(hexStr):
+    hexArr = split_blocks(hexStr, 2)
+    stateArr = []
+    for hs in hexArr:
+        stateArr.append(int(hs, 16))
+        
+    state = np.reshape(np.array(stateArr), (4,4))
+    return state
+
+decryptedTxt = decrypt(encryptedTxt, key)
+print("Decrypted Text = " + decryptedTxt)
