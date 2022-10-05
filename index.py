@@ -49,20 +49,20 @@ inv_Sbox = [
 =========================================================================================
 =========================================================================================
 =========================================================================================
-ENCRYPT FUNCTION
-=========================================================================================
-=========================================================================================
-=========================================================================================
+
+Encrypt(string plaintext, string key)
+Params: string plainText
+        string key
 
 """
 
 
 def encrypt(plainText, key):
     
+    # Ensure Length is 16 bytes e.g 128 bits
     if  not len(plainText) == 16 and len(key) == 16:
         raise Exception("Ensure text and key length is 16")
-        
-    assert len(plainText) == 16 and len(key) == 16 # Ensure Length is 16 bytes e.g 128 bits
+    assert len(plainText) == 16 and len(key) == 16
 
     blocks = divideIntoBlocks(plainText)
     roundKeys = getRoundKeys(key)
@@ -94,11 +94,15 @@ def encrypt(plainText, key):
 =========================================================================================
 =========================================================================================
 =========================================================================================
-    getRoundKeys():  performs key deployment
-    KEY EXPANSION
-=========================================================================================
-=========================================================================================
-=========================================================================================
+
+getRoundKeys(string key): 
+
+KEY EXPANSION
+- Takes the key string, and expands it to produce more keys that will be used in every round
+
+params: string key
+returns: array of expanded keys
+    
 """
 def getRoundKeys(key):
     
@@ -139,9 +143,11 @@ def getRoundKeys(key):
 """
 =========================================================================================
 =========================================================================================
-    getRoundKeys() HELPER FUNCTIONS:
+
+getRoundKeys()
+    HELPER FUNCTIONS
 """
-#takes from 1 to the end, adds on from the start to 1
+
 def rotWord(word):
     return word[1:] + word[:1]
 
@@ -153,16 +159,15 @@ def xor_bytes(a, b):
     return result
 
 def subWord(word):
-    #assert len(word) == 4
     return [Sbox[w] for w in word]
-
 
 
 """
 =========================================================================================
 =========================================================================================
 Encrypt()
-HELPER FUNCTIONS
+
+    HELPER FUNCTIONS
 """
 def addRoundKey(key, block):
     for i in range(4):
@@ -216,60 +221,9 @@ def mixColumns(s):
 =========================================================================================
 =========================================================================================
 =========================================================================================
-    divideIntoBlocks:  division of the input text into blocks of 128 bits (16 bytes)
-"""
-# TASK 1: divide input text into blocks of 16 bytes and return 4X4 matrix
-def divideIntoBlocks(text):
-    
-    if len(text) % 16 != 0:
-        text = padText(text) # Text padded
 
-    blocks = split_blocks(text)
-    
-    byteBlocks = []
-    for block in blocks:
-        matrix = toUnicode(block)
-        byteBlocks.append(matrix)
-        
-    return byteBlocks
-
-
-"""
-=========================================================================================
-=========================================================================================
-    divideIntoBlocks() HELPER FUNCTIONS:
-"""
-def padText(text):
-    for i in range(16):
-        if (len(text)+i) % 16 == 0:
-            return text+" "*i # add extra whitespace to make 16 bytes
-
-def split_blocks(message, size=16):
-        assert len(message) % size == 0
-        return [message[i:i+size] for i in range(0, len(message), size)]
-
-def toUnicode(block):
-    byteArr = []
-    for b in block:
-        byteArr.append(ord(b))
-    return byteArr
-
-# Test Functions
-txt = "SampleTxtToCrypt"
-key = "SampleKeyToKrypt"
-encryptedTxt = encrypt(txt, key)
-print("Encrypted Text = " + encryptedTxt)
-
-
-
-"""
-=========================================================================================
-=========================================================================================
-=========================================================================================
-DECRYPT FUNCTION
-=========================================================================================
-=========================================================================================
-=========================================================================================
+Decrypt(string cipherText, string key)
+    - Takes a string of encrypted cipher text and the key that was used to encrypt it and performs the inverse transformations
 
 """
 
@@ -318,15 +272,70 @@ def inv_mix_columns(s):
 
     return mixColumns(s)
     
-    
+
+# converts hex string back to unicode int representation
 def hex2ByteMatrix(hexStr):
     hexArr = split_blocks(hexStr, 2)
     stateArr = []
     for hs in hexArr:
-        stateArr.append(int(hs, 16))
+        stateArr.append(int(hs, 16)) # hex to int
         
     state = np.reshape(np.array(stateArr), (4,4))
     return state
+
+
+
+"""
+=========================================================================================
+=========================================================================================
+=========================================================================================
+Helper Functions
+
+
+=========================================================================================
+divideIntoBlocks()
+    division of the input text into blocks of 128 bits (16 bytes)
+    
+params: string text
+returns: array of bytes in int representation (unicode)
+
+"""
+
+def divideIntoBlocks(text):
+
+    blocks = split_blocks(text) # splits into 16-byte blocks
+    
+    byteBlocks = []
+    for block in blocks:
+        matrix = toUnicode(block)
+        byteBlocks.append(matrix)
+        
+    return byteBlocks
+
+
+"""
+=========================================================================================
+=========================================================================================
+    divideIntoBlocks() HELPER FUNCTIONS:
+"""
+
+def split_blocks(message, size=16):
+        assert len(message) % size == 0
+        return [message[i:i+size] for i in range(0, len(message), size)]
+
+# takes a string(block) of characters and return the array of unicode
+def toUnicode(block):
+    byteArr = []
+    for b in block:
+        byteArr.append(ord(b))
+    return byteArr
+
+
+# Test Functions
+txt = "SampleTxtToCrypt"
+key = "SampleKeyToKrypt"
+encryptedTxt = encrypt(txt, key)
+print("Encrypted Text = " + encryptedTxt)
 
 decryptedTxt = decrypt(encryptedTxt, key)
 print("Decrypted Text = " + decryptedTxt)
